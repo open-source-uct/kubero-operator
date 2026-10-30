@@ -51,9 +51,10 @@ spec:
         resources:
           limits:
             cpu: 1000m
-            memory: 1Gi
+            # 1Gi no alcanzaba con varias apps nuevas a la vez (OOMKilled en bucle, kubero #228)
+            memory: 2Gi
           requests:
             cpu: 100m
-            memory: 64Mi
+            memory: 256Mi
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

@@ -10,7 +10,7 @@ spec:
     spec:
       containers:
       - name: kube-rbac-proxy
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0
+        image: registry.k8s.io/kubebuilder/kube-rbac-proxy:v0.15.0
         args:
         - "--secure-listen-address=0.0.0.0:8443"
         - "--upstream=http://127.0.0.1:8080/"
@@ -34,3 +34,6 @@ spec:
         - "--leader-elect"
         - "--leader-election-id=kubero-operator"
         - "--zap-log-level=info"
+        # por defecto procesa NumCPU/2 releases en paralelo (12 en un nodo de 24
+        # CPUs) y una ráfaga de apps nuevas lo dejaba sin memoria (kubero #228)
+        - "--max-concurrent-reconciles=2"

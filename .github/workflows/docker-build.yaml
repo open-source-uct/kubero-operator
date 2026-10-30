@@ -1,71 +1,63 @@
 name: Docker
 
+# Publica la imagen del operador del fork en ghcr.io/open-source-uct. Antes
+# apuntaba a ghcr.io/kubero-dev (sin permiso de escritura desde el fork), no
+# tenía permiso de packages y los pasos de push estaban comentados: construía
+# la imagen y la descartaba.
 on:
   push:
-    # Publish `master` as Docker `latest` image.
-    #branches:
-    #  - main
-
     # Publish `v1.2.3` tags as releases.
     tags:
       - v*
   workflow_dispatch:
-
-  # Run tests for any PRs.
-  #pull_request:
+    inputs:
+      version:
+        description: 'Versión a publicar (ej. v0.2.2-uct.1)'
+        required: true
 
 env:
-  SDK_VERSION: "v1.29.0"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: open-source-uct/kubero-operator/kuberoapp
 
 jobs:
-  # Push image to GitHub Packages.
-  # See also https://docs.docker.com/docker-hub/builds/
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: "Install operator-sdk"
-        run : |
-          curl -L -o /usr/local/bin/operator-sdk "https://github.com/operator-framework/operator-sdk/releases/download/${SDK_VERSION}/operator-sdk_linux_amd64"
-          chmod +x /usr/local/bin/operator-sdk
-
-      - name: "Get Version"
-        id: get_version
-        run: |
-          # Strip git ref prefix from version
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-
-          # Strip "v" prefix from tag name
-          #[[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-
-          # Use Docker `latest` tag convention
-          [ "$VERSION" == "main" ] && VERSION=latest
-
-          echo "IMG=ghcr.io/kubero-dev/kubero-operator/kuberoapp:${VERSION}" >> $GITHUB_ENV
-          echo "BUNDLE_IMG=ghcr.io/kubero-dev/kubero-operator/kuberoapp-bundle:${VERSION}" >> $GITHUB_ENV
-
-          echo ::set-output name=VERSION::$(cat VERSION)
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: 'arm64,amd64'
-
-      # Workaround: https://github.com/docker/build-push-action/issues/461
       - name: Setup Docker buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
-      - name: Log into registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build images
-        run: |
-          make docker-build
-          make bundle-build
+      # El tag de git (o la versión indicada a mano) es el tag de la imagen.
+      # La etiqueta org.opencontainers.image.source vincula el paquete con este
+      # repositorio público, para que el clúster lo descargue sin credenciales.
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=tag
+            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
-#      - name: Push image ghcr.io
-#        run: |
-#          make docker-push
-#          make bundle-push
+      - name: Build and push Docker image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # los nodos del clúster de la UCT son amd64
+          platforms: linux/amd64

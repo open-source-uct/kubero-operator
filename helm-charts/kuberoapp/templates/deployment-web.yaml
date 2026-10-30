@@ -135,29 +135,33 @@ spec:
               protocol: TCP
           {{- if or ( not .Values.sleep ) (eq .Values.sleep "disabled") }}
           {{- if .Values.healthcheck.enabled }}
+          # startupSeconds y periodSeconds venían en los values y en el
+          # formulario de Kubero, pero las sondas tenían 90, 2 y 3 segundos
+          # fijos: una app con periodSeconds 600 recibía una llamada cada 2-3 s
           startupProbe:
             httpGet:
               path: {{ .Values.healthcheck.path | default "/" }}
               port: http
-            failureThreshold: 90
+            # hasta startupSeconds para arrancar, revisando cada segundo
+            failureThreshold: {{ .Values.healthcheck.startupSeconds | default 90 | int }}
             periodSeconds: 1
           readinessProbe:
             httpGet:
               path: {{ .Values.healthcheck.path | default "/" }}
               port: http
             initialDelaySeconds: 2
-            periodSeconds: 2
+            periodSeconds: {{ .Values.healthcheck.periodSeconds | default 15 | int }}
             successThreshold: 1
-            timeoutSeconds: {{ .Values.healthcheck.timeoutSeconds | default "3" }}
-            failureThreshold: 30
+            timeoutSeconds: {{ .Values.healthcheck.timeoutSeconds | default 3 | int }}
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: {{ .Values.healthcheck.path | default "/" }}
               port: http
             initialDelaySeconds: 5
-            periodSeconds: 3
+            periodSeconds: {{ .Values.healthcheck.periodSeconds | default 15 | int }}
             successThreshold: 1
-            timeoutSeconds: {{ .Values.healthcheck.timeoutSeconds | default "3" }}
+            timeoutSeconds: {{ .Values.healthcheck.timeoutSeconds | default 3 | int }}
             failureThreshold: 3
           {{- end }}
           {{- end }}
