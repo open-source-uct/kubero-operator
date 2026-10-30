@@ -2447,7 +2447,7 @@ spec:
         - --leader-election-id=kubero-operator
         - --zap-log-level=info
         - --max-concurrent-reconciles=2
-        image: ghcr.io/open-source-uct/kubero-operator/kuberoapp:v0.2.2-uct.1
+        image: ghcr.io/open-source-uct/kubero-operator/kuberoapp:v0.2.2-uct.2
         livenessProbe:
           httpGet:
             path: /healthz

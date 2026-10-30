@@ -11,6 +11,9 @@ spec:
   {{- if and (.Values.autoscaling.enabled) (lt (.Values.web.autoscaling.minReplicas | float64) 1.0) }}
   replicas: 0
   {{- end }}
+  {{- with include "kuberoapp.strategy" . }}
+  {{- . | nindent 2 }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "kuberoapp.selectorLabels" . | nindent 6 }}-web

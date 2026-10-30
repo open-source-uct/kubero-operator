@@ -68,3 +68,26 @@ Create the name of the service account to use
 {{- .Values.gitrepo.clone_url }}
 {{- end }}
 {{- end }}
+
+{{/*
+Estrategia de reemplazo de los pods. Un volumen ReadWriteOnce solo se conecta a
+un nodo a la vez: con la actualización progresiva, el pod nuevo (a veces en otro
+nodo) esperaba el volumen que seguía usando el pod viejo, y el viejo no se
+apagaba hasta que el nuevo estuviera listo (Multi-Attach error). Con Recreate se
+apaga el viejo primero. Las apps sin esos volúmenes no cambian.
+rollingUpdate: null es necesario: al pasar un Deployment existente a Recreate,
+Kubernetes rechaza el cambio si el campo rollingUpdate sigue presente.
+*/}}
+{{- define "kuberoapp.strategy" -}}
+{{- $exclusive := false }}
+{{- range .Values.extraVolumes }}
+{{- if and (not .emptyDir) (or (has "ReadWriteOnce" (.accessModes | default list)) (has "ReadWriteOncePod" (.accessModes | default list))) }}
+{{- $exclusive = true }}
+{{- end }}
+{{- end }}
+{{- if $exclusive }}
+strategy:
+  type: Recreate
+  rollingUpdate: null
+{{- end }}
+{{- end }}

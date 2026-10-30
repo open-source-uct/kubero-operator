@@ -13,4 +13,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/open-source-uct/kubero-operator/kuberoapp
-  newTag: v0.2.2-uct.1
+  newTag: v0.2.2-uct.2
